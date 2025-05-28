@@ -1,0 +1,33 @@
+# Etapa 1: Construir la aplicación Vue
+FROM node:24-alpine AS builder
+WORKDIR /app
+
+# Instalar pnpm globalmente
+RUN npm install -g pnpm
+
+# Copiar archivos de manifiesto y lockfile
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar dependencias (incluyendo vite)
+RUN pnpm install
+
+# Copiar el resto del código fuente
+COPY . .
+
+# Construir la aplicación
+RUN pnpm build
+
+# Etapa 2: Servir la aplicación construida con Vite Preview
+FROM node:24-alpine
+WORKDIR /app
+
+# Copiamos todo el proyecto construido desde la etapa anterior.
+# Esto incluye la carpeta 'dist' y 'node_modules' (que contiene el ejecutable de Vite).
+COPY --from=builder /app .
+
+EXPOSE 4173
+
+# ---- INICIO DE LA MODIFICACIÓN ----
+# Usamos npx para ejecutar vite preview. npx buscará vite en node_modules/.bin
+CMD ["npx", "vite", "preview", "--host", "--port", "4173"]
+# ---- FIN DE LA MODIFICACIÓN ----

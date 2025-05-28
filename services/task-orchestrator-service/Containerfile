@@ -1,0 +1,39 @@
+# Etapa 1: Construcción (builder)
+FROM docker.io/golang:1.24.3-alpine AS builder
+
+# Establecer el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# Copiar los archivos de módulos de Go y descargar dependencias primero
+# Esto aprovecha el caché de Podman si no cambian las dependencias
+COPY go.mod go.sum ./
+RUN go mod download
+RUN go mod verify
+
+# Copiar todo el código fuente del servicio
+COPY . .
+
+# Compilar la aplicación.
+# CGO_ENABLED=0 para compilación estática (útil para Alpine).
+# -o task-orchestrator-service nombra el ejecutable de salida.
+# ./cmd/server/main.go es el punto de entrada de tu aplicación.
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o task-orchestrator-service ./cmd/server/main.go
+
+# Etapa 2: Imagen Final (runtime)
+FROM docker.io/golang:1.24.3-alpine
+
+# Instalar certificados CA (para llamadas HTTPS si el servicio las hace) y datos de zona horaria
+RUN apk --no-cache add ca-certificates tzdata
+
+# Establecer el directorio de trabajo
+WORKDIR /root/
+
+# Copiar el ejecutable compilado desde la etapa 'builder'
+COPY --from=builder /app/task-orchestrator-service .
+
+# EXPOSE 9090 # Documenta el puerto interno que la aplicación usará (según tu .env y -e PORT)
+              # Este es el puerto que tu aplicación Go escuchará DENTRO del contenedor.
+
+# Comando para ejecutar la aplicación.
+# El ejecutable se llama 'task-orchestrator-service'.
+CMD ["./task-orchestrator-service"]
