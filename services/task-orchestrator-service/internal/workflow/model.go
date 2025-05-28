@@ -108,3 +108,20 @@ func SaveWorkflow(wf *Workflow) error {
     }
     return false
 }
+
+
+type InMemoryWorkflowStore struct{}
+
+func (s *InMemoryWorkflowStore) GetAllEnabledScheduledWorkflows() ([]*Workflow, error) {
+    allScheduled := []*Workflow{}
+    // Iteramos sobre todos los usuarios y sus workflows
+    // Esto es simple para un store en memoria; una BD lo haría más eficientemente.
+    for _, userWorkflows := range workflowStore { // workflowStore es nuestro mapa global en memoria
+        for _, wf := range userWorkflows {
+            if wf.IsEnabled && wf.Trigger.Type == TriggerTypeSchedule {
+                allScheduled = append(allScheduled, wf)
+            }
+        }
+    }
+    return allScheduled, nil
+}
