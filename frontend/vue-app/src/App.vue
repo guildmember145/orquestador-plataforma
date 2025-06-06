@@ -1,121 +1,149 @@
 <template>
-  <div class="container">
-    <header>
-      <h1>Orquestador de Tareas</h1>
-      <nav v-if="authStore.isAuthenticated">
-        <span>Bienvenido, {{ authStore.currentUser?.username }}!</span>
+  <div id="app-layout">
+    <header class="main-header" v-if="authStore.isAuthenticated">
+      <div class="logo">
+        Plataforma de Tareas
+      </div>
+      <nav>
+        <span>Bienvenido, {{ authStore.currentUser?.username }}</span>
         <button @click="handleLogout">Logout</button>
       </nav>
     </header>
+
     <main>
-      <div v-if="!authStore.isAuthenticated" class="auth-section">
-        <LoginForm />
-        <hr>
-        <RegisterForm />
-      </div>
-      <div v-else class="dashboard">
-        <p>¡Estás logueado!</p>
-        <p>Aquí iría el contenido de tu Dashboard o la vista principal.</p>
-        <button @click="fetchMyData" v-if="!authStore.currentUser?.id">Ver mis datos</button>
-        <pre v-if="authStore.currentUser">{{ authStore.currentUser }}</pre>
-      </div>
-    </main>
+      <router-view /> </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import LoginForm from './components/Auth/LoginForm.vue';
-import RegisterForm from './components/Auth/RegisterForm.vue';
 import { useAuthStore } from './stores/auth';
+import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
+const router = useRouter();
 
-onMounted(async () => {
-  await authStore.init();
+// Cuando la app se carga, intenta inicializar el estado de autenticación
+// para mantener al usuario logueado si ya tenía un token válido.
+onMounted(() => {
+  authStore.init();
 });
 
 const handleLogout = () => {
   authStore.logout();
-};
-
-const fetchMyData = async () => {
-  try {
-    await authStore.fetchUser();
-  } catch (error) {
-    console.error("Failed to fetch user data on button click");
-  }
+  // Después de desloguear, redirigimos al usuario a la página de login.
+  router.push('/login');
 };
 </script>
 
-<style scoped>
-.container {
-  background: #1e1e1e;
-  color: #fff;
-  min-height: 100vh;
+<style>
+/* 1. Definimos nuestra paleta de colores como variables CSS */
+:root {
+  --color-background: #1a1a1d; /* Un negro/gris muy oscuro, ligeramente cálido */
+  --color-surface: #2c2c34;  /* Una superficie un poco más clara para tarjetas y formularios */
+  --color-border: #4a4a52;   /* Un borde sutil */
+  --color-text-primary: #f2f2f2; /* Un blanco no tan puro, más suave a la vista */
+  --color-text-secondary: #a9a9b2; /* Un gris más suave para texto secundario */
+  
+  --color-accent: #fca311;       /* Un acento cálido, tipo ámbar/naranja */
+  --color-accent-hover: #e85d04;  /* Un naranja más intenso para hover */
+
+  --color-success: #2a9d8f;      /* Un verde azulado cálido */
+  --color-error: #e76f51;        /* Un rojo/coral cálido */
+}
+
+/* 2. Aplicamos estilos globales básicos */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+#app-layout {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex-grow: 1;
+  padding: 20px 40px;
+}
+
+/* 3. Estilos generales para el Header (usando las variables) */
+.main-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 15px 40px;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
 
-header {
-  background: #2a2a2a;
-  padding: 15px;
-  width: 100%;
-  border-radius: 8px;
-  text-align: center;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-nav {
-  margin-top: 10px;
-}
-
-nav span {
+.main-header .logo {
   font-weight: bold;
-  margin-right: 10px;
+  font-size: 1.2em;
 }
 
-button {
-  background: #007bff;
+.main-header nav {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.main-header nav span {
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+}
+
+.main-header button {
+  background-color: var(--color-error);
   color: white;
-  padding: 10px;
   border: none;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background 0.3s;
+  font-weight: bold;
+  transition: background-color 0.2s;
 }
 
-button:hover {
-  background: #0056b3;
+.main-header button:hover {
+  background-color: #c9302c; /* Un rojo más oscuro al pasar el mouse */
 }
 
-.auth-section {
-  background: #292929;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-  text-align: center;
-  width: 400px;
-}
-
-.dashboard {
-  text-align: center;
-  margin-top: 20px;
-}
-
-hr {
+/* 4. Estilos generales para botones y formularios */
+button.primary-action {
+  background-color: var(--color-accent);
+  color: #1a1a1d;
+  font-weight: bold;
   border: none;
-  height: 2px;
-  background: #444;
-  margin: 20px 0;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-pre {
-  background: #333;
-  padding: 15px;
+button.primary-action:hover {
+  background-color: var(--color-accent-hover);
+}
+
+.auth-form, .workflow-form {
+  background-color: var(--color-surface);
+  padding: 30px;
   border-radius: 8px;
-  overflow-x: auto;
+  border: 1px solid var(--color-border);
+}
+
+.auth-form input, .workflow-form input[type="text"], .workflow-form textarea {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.auth-form input:focus, .workflow-form input[type="text"]:focus, .workflow-form textarea:focus {
+    border-color: var(--color-accent);
+    outline: none;
 }
 </style>

@@ -3,118 +3,127 @@
     <h2>Register</h2>
     <form @submit.prevent="handleRegister">
       <div class="input-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" v-model="username" required />
+        <label for="register-username">Username:</label>
+        <input id="register-username" type="text" v-model="username" required />
       </div>
       <div class="input-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" v-model="email" required />
+        <label for="register-email">Email:</label>
+        <input id="register-email" type="email" v-model="email" required />
       </div>
       <div class="input-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" v-model="password" required />
+        <label for="register-password">Password:</label>
+        <input id="register-password" type="password" v-model="password" required />
       </div>
-      <button type="submit" :disabled="authStore.isLoading">
+      <button type="submit" :disabled="authStore.isLoading" class="primary-action">
         {{ authStore.isLoading ? 'Registering...' : 'Register' }}
       </button>
-      <p v-if="authStore.error" class="error">{{ authStore.error }}</p>
-      <p v-if="message" class="success">{{ message }}</p>
+
+      <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="successMessage" class="success">{{ successMessage }}</p>
+
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useAuthStore } from '../../stores/auth';
+import { useAuthStore } from '@/stores'; // Usamos el barril de stores
 
 const authStore = useAuthStore();
 const username = ref('');
 const email = ref('');
 const password = ref('');
-const message = ref('');
+
+// Estados locales para los mensajes
+const error = ref<string | null>(null);
+const successMessage = ref<string | null>(null);
 
 const handleRegister = async () => {
-  message.value = '';
+  // Limpiamos mensajes anteriores
+  error.value = null;
+  successMessage.value = null;
+
   try {
+    // --- ESTA ES LA LÍNEA CORREGIDA ---
+    // Llamamos a la acción 'register' del store
     await authStore.register({
       username: username.value,
       email: email.value,
       password: password.value,
     });
-    message.value = 'Registration successful! Please login.';
+
+    // Si el registro es exitoso
+    successMessage.value = '¡Registro exitoso! Ahora puedes iniciar sesión.';
+
+    // Limpiar el formulario
     username.value = '';
     email.value = '';
     password.value = '';
-  } catch (error) {
-    console.error('Registration failed:', authStore.error);
+
+  } catch (err: any) {
+    // Si la acción 'register' falla, atrapamos el error
+    // y lo mostramos en la interfaz.
+    error.value = err.message || 'Ocurrió un error durante el registro.';
+    console.error('Registration failed:', err);
   }
 };
 </script>
 
 <style scoped>
+/* Usaremos los mismos estilos que ya definiste para LoginForm.vue */
 .auth-form {
+  width: 100%;
   max-width: 400px;
-  margin: auto;
-  padding: 30px;
-  background: #22a568;
-  color: #fff;
-  border-radius: 12px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-  text-align: center;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 15px;
-}
-
-label {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-input {
-  padding: 10px;
-  border: 2px solid #444;
+  background-color: var(--color-surface);
+  padding: 30px 40px;
   border-radius: 8px;
-  background: #333;
-  color: #fff;
-  transition: all 0.3s ease-in-out;
+  border: 1px solid var(--color-border);
 }
-
-input:focus {
-  border-color: #007bff;
+.auth-form h2 {
+  text-align: center;
+  margin-bottom: 25px;
+  color: var(--color-text-primary);
+}
+.input-group {
+  margin-bottom: 20px;
+}
+.input-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+}
+.input-group input {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: 5px;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+}
+.input-group input:focus {
+  border-color: var(--color-accent);
   outline: none;
 }
-
-button {
-  background: #007bff;
-  color: white;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s;
+button.primary-action {
+  width: 100%;
+  padding: 12px;
+  font-size: 1em;
+  font-weight: bold;
 }
-
-button:disabled {
-  background: #555;
-}
-
-button:hover:not(:disabled) {
-  background: #0056b3;
-}
-
 .error {
-  color: red;
-  font-size: 14px;
-  margin-top: 10px;
+  color: var(--color-error);
+  font-size: 0.9em;
+  margin-top: 15px;
+  text-align: center;
 }
-
 .success {
-  color: limegreen;
-  font-size: 14px;
-  margin-top: 10px;
+  color: var(--color-success);
+  font-size: 0.9em;
+  margin-top: 15px;
+  text-align: center;
 }
 </style>
