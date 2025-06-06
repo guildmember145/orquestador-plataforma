@@ -1,10 +1,10 @@
 // frontend/vue-app/src/stores/auth.ts
 
 import { defineStore } from 'pinia';
-import api from '../services/api';
-import type { LoginRequest, UserProfile } from '../types/auth';
+import api from '@/services/api';
+import { useWorkflowStore } from '@/stores';
+import type { LoginRequest, RegisterRequest, UserProfile } from '@/types/auth';
 
-// 1. Definimos una interfaz para el estado del store
 export interface AuthState {
   accessToken: string | null;
   user: UserProfile | null;
@@ -13,7 +13,6 @@ export interface AuthState {
 }
 
 export const useAuthStore = defineStore('auth', {
-  // 2. Usamos la interfaz para tipar el estado
   state: (): AuthState => ({
     accessToken: localStorage.getItem('accessToken') || null,
     user: JSON.parse(localStorage.getItem('user') || 'null'),
@@ -21,12 +20,10 @@ export const useAuthStore = defineStore('auth', {
     error: null,
   }),
   getters: {
-    // 3. Tipamos los getters para que TypeScript los entienda
     isAuthenticated: (state): boolean => !!state.accessToken,
     currentUser: (state): UserProfile | null => state.user,
   },
   actions: {
-    // 4. Las acciones permanecen mayormente igual
     setTokens(accessToken: string) {
       this.accessToken = accessToken;
       localStorage.setItem('accessToken', accessToken);
@@ -40,13 +37,27 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
-      // Limpiar también el store de workflows al hacer logout
-      // const workflowStore = useWorkflowStore();
-      // No existe clearWorkflows, así que no llamamos nada aquí
+      const workflowStore = useWorkflowStore();
+      workflowStore.clearWorkflows();
     },
-    async register() {
-      // ... (lógica de registro sin cambios)
+
+    // --- INICIO DE LA SECCIÓN A VERIFICAR ---
+    async register(payload: RegisterRequest) { // <-- La firma ahora acepta 1 argumento 'payload'
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await api.post('/auth/register', payload);
+        console.log('Registration successful:', response.data);
+        return response.data;
+      } catch (err: any) {
+        this.error = err.response?.data?.error || 'Registration failed';
+        throw new Error(this.error);
+      } finally {
+        this.isLoading = false;
+      }
     },
+    // --- FIN DE LA SECCIÓN A VERIFICAR ---
+
     async login(payload: LoginRequest) {
       this.isLoading = true;
       this.error = null;
@@ -54,28 +65,37 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.post('/auth/login', payload);
         const { access_token } = response.data;
         this.setTokens(access_token);
-        // Actualizamos la cabecera por defecto en la instancia de Axios del auth-service
         api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
         await this.fetchUser();
       } catch (err: any) {
         this.clearAuthData();
         this.error = err.response?.data?.error || 'Login failed';
-        throw new Error(this.error ?? 'Login failed');
+        throw new Error(this.error || 'An unknown login error occurred');
       } finally {
         this.isLoading = false;
       }
     },
     async fetchUser() {
-      // ... (lógica de fetchUser sin cambios)
+      if (!this.accessToken) return;
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await api.get('/users/me');
+        this.setUser(response.data);
+      } catch (err: any) {
+        this.error = err.response?.data?.error || 'Failed to fetch user';
+        this.clearAuthData();
+        throw err;
+      } finally {
+        this.isLoading = false;
+      }
     },
     logout() {
       this.clearAuthData();
-      // La redirección ahora la manejamos en App.vue
     },
     init() {
       if (this.accessToken && !this.user) {
         this.fetchUser().catch(() => {
-          // Si el token es inválido o expiró, deslogueamos
           this.logout();
         });
       }

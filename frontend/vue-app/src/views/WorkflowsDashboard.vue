@@ -5,7 +5,7 @@
       <button @click="goToCreatePage" class="primary-action">Crear Nuevo Workflow</button>
     </header>
 
-    <div v-if="workflowStore.isWorkflowsLoading" class="loading">
+    <div v-if="workflowStore.isWorkflowsLoading && workflowStore.allWorkflows.length === 0" class="loading">
       Cargando workflows...
     </div>
     
@@ -39,7 +39,7 @@
             </td>
             <td class="actions-cell">
               <button class="action-btn edit">Editar</button>
-              <button class="action-btn delete">Eliminar</button>
+              <button @click="handleDelete(workflow.id, workflow.name)" class="action-btn delete">Eliminar</button>
             </td>
           </tr>
         </tbody>
@@ -56,14 +56,31 @@ import { useRouter } from 'vue-router';
 const workflowStore = useWorkflowStore();
 const router = useRouter();
 
-// Esta función onMounted es la que llama a la API al cargar la página.
-// Es crucial que esté aquí y que se llame a fetchWorkflows.
+// Se ejecuta cuando el componente se carga para buscar los workflows
 onMounted(() => {
   workflowStore.fetchWorkflows();
 });
 
+// Navega a la página de creación
 const goToCreatePage = () => {
   router.push('/dashboard/workflows/new');
+};
+
+// Maneja el clic en el botón de eliminar
+const handleDelete = async (workflowId: string, workflowName: string) => {
+  // Pide confirmación al usuario
+  const confirmed = confirm(`¿Estás seguro de que quieres eliminar el workflow "${workflowName}"?`);
+  
+  if (confirmed) {
+    try {
+      await workflowStore.deleteWorkflow(workflowId);
+      // Opcional: mostrar una notificación de éxito
+      alert(`Workflow "${workflowName}" eliminado.`);
+    } catch (error) {
+      // Opcional: mostrar una notificación de error
+      alert(`Error al eliminar el workflow: ${workflowStore.getWorkflowError}`);
+    }
+  }
 };
 </script>
 
