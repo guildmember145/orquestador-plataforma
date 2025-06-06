@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    // ... otras opciones que ya tengas ...
-
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
@@ -12,13 +10,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-
-    // --- INICIO DE LAS LÍNEAS A AÑADIR/MODIFICAR ---
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
-    // --- FIN DE LAS LÍNEAS A AÑADIR/MODIFICAR ---
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

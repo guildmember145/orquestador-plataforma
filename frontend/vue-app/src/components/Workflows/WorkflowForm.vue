@@ -41,33 +41,52 @@
     </div>
     
     <div class="form-actions">
-      <button type="submit" class="submit-btn primary-action">Guardar Workflow</button>
-    </div>
+  <button type="submit" class="submit-btn primary-action">
+    {{ isEditMode ? 'Actualizar Workflow' : 'Guardar Workflow' }}
+  </button>
+</div>
   </form>
 </template>
 
 // En src/components/Workflows/WorkflowForm.vue
 
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { useWorkflowStore } from '@/stores'; // Asegúrate de importar desde el barril
+import { reactive, computed, watch } from 'vue';
+import { useWorkflowStore, type Workflow } from '@/stores';
 import { useRouter } from 'vue-router';
 import TriggerConfigurator from './TriggerConfigurator.vue';
 import ActionConfigurator from './ActionConfigurator.vue';
 
+const props = defineProps({
+  initialData: {
+    type: Object as () => Workflow | null,
+    default: null, // Por defecto es null (modo creación)
+  }
+});
+
 const workflowStore = useWorkflowStore();
 const router = useRouter();
+
+const isEditMode = computed(() => !!props.initialData);
+
+
+
 
 const formData = reactive({
   name: '',
   description: '',
   is_enabled: true,
-  trigger: {
-    type: 'schedule',
-    config: { cron: '' },
-  },
+  trigger: { type: 'schedule', config: { cron: '' } },
   actions: [] as any[],
 });
+
+watch(() => props.initialData, (newData) => {
+  if (newData) {
+    // Hacemos una copia profunda para no mutar las props directamente
+    const dataCopy = JSON.parse(JSON.stringify(newData));
+    Object.assign(formData, dataCopy);
+  }
+}, { immediate: true });
 
 const addAction = () => {
   formData.actions.push({
@@ -87,22 +106,20 @@ const updateAction = (index: number, updatedAction: any) => {
 
 // --- INICIO DE LA MODIFICACIÓN ---
 const handleSubmit = async () => {
-  // Mostramos el objeto final que se enviará, es útil para depurar
-  console.log('Enviando workflow para crear:', JSON.parse(JSON.stringify(formData)));
-  
   try {
-    // Llamamos a la acción 'createWorkflow' de nuestro store Pinia
-    await workflowStore.createWorkflow(formData);
-    
-    // Si la creación es exitosa, redirigimos al usuario al dashboard
-    alert('¡Workflow creado exitosamente!'); // Opcional: una mejor notificación podría ir aquí
+    if (isEditMode.value) {
+      // MODO EDICIÓN: Llamamos a updateWorkflow
+      await workflowStore.updateWorkflow(props.initialData!.id, formData);
+      alert('¡Workflow actualizado exitosamente!');
+    } else {
+      // MODO CREACIÓN: Llamamos a createWorkflow
+      await workflowStore.createWorkflow(formData);
+      alert('¡Workflow creado exitosamente!');
+    }
+    // Redirigir al dashboard en caso de éxito
     router.push('/dashboard/workflows');
-
   } catch (error) {
-    // Si la acción 'createWorkflow' lanza un error, lo atrapamos aquí
-    console.error("Error desde el componente de formulario:", error);
-    // Mostramos una alerta al usuario. El error ya se logueó en la consola desde el store.
-    alert('Hubo un error al crear el workflow. Revisa la consola para más detalles.');
+    alert('Hubo un error al guardar el workflow. Revisa la consola.');
   }
 };
 // --- FIN DE LA MODIFICACIÓN ---

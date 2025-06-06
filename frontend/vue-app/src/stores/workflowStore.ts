@@ -83,11 +83,31 @@ export const useWorkflowStore = defineStore('workflows', {
         },
 
         // TODO: Implementar la lógica para actualizar y eliminar
-        async updateWorkflow(id: string, payload: any) {
-            console.log(`TODO: Actualizar workflow ${id} con payload:`, payload);
-            // Lógica: llamar a orchestratorApi.put(`/workflows/${id}`, payload)
-            // y luego actualizar el workflow en el array this.workflows
-        },
+        async updateWorkflow(workflowId: string, payload: any) {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            // 1. Llamamos al endpoint PUT de la API con los nuevos datos
+            const response = await orchestratorApi.put<Workflow>(`/workflows/${workflowId}`, payload);
+
+            // 2. Buscamos el índice del workflow actualizado en nuestro array local
+            const index = this.workflows.findIndex(wf => wf.id === workflowId);
+            if (index !== -1) {
+                // 3. Si lo encontramos, lo reemplazamos con los datos actualizados de la respuesta
+                this.workflows[index] = response.data;
+            }
+
+            console.log(`Workflow ${workflowId} actualizado exitosamente.`);
+            return response.data;
+
+        } catch (err: any) {
+            this.error = err.response?.data?.error || `No se pudo actualizar el workflow ${workflowId}`;
+            console.error(this.error);
+            throw new Error(this.error);
+        } finally {
+            this.isLoading = false;
+        }
+    },
 
         async deleteWorkflow(workflowId: string) {
         this.isLoading = true;

@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import WorkflowForm from '@/components/workflows/WorkflowForm.vue';
+import WorkflowForm from '@/components/Workflows/WorkflowForm.vue';
 </script>
 
 <style scoped>

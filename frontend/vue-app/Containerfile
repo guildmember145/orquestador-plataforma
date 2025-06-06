@@ -14,20 +14,22 @@ RUN pnpm install --frozen-lockfile
 # Copiar todo el código fuente de la aplicación
 COPY . .
 
-# --- INICIO DE LA MODIFICACIÓN CLAVE ---
+# --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
 # En lugar de 'RUN pnpm build', ejecutamos los dos pasos por separado
 
 # Paso 1 del build: Solo verificación de tipos.
-# Usamos 'pnpm exec vue-tsc' y el flag '--noEmit' para asegurarnos de que solo revise los tipos
-# y no intente "emitir" archivos, lo cual evita el error TS6310.
+# Usamos 'vue-tsc' con el flag '--noEmit'. Esto le dice a TypeScript:
+# "Solo revisa mi código en busca de errores, no intentes compilar ni emitir nada".
+# Esto evita completamente el error TS6310.
 RUN pnpm exec vue-tsc --noEmit
 
 # Paso 2 del build: Vite se encarga de empaquetar la aplicación para producción.
+# Este comando toma tu código y lo convierte en los archivos estáticos finales.
 RUN pnpm exec vite build
-# --- FIN DE LA MODIFICACIÓN CLAVE ---
+# --- FIN DE LA CORRECCIÓN DEFINITIVA ---
 
 
-# Etapa 2: Servir la aplicación (runtime) - Sin cambios aquí
+# Etapa 2: Servir la aplicación (runtime)
 FROM node:24-alpine
 WORKDIR /app
 

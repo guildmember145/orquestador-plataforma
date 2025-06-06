@@ -18,6 +18,21 @@ const routes: Array<RouteRecordRaw> = [
         component: LoginView,
     },
     {
+        path: '/dashboard/workflows/new',
+        name: 'WorkflowCreate',
+        component: () => import('@/views/WorkflowCreateView.vue'),
+        meta: { requiresAuth: true },
+    },
+
+    // --- INICIO DE LA NUEVA RUTA DE EDICIÓN ---
+    {
+        // El ':id' es un parámetro dinámico. Vue Router lo capturará.
+        path: '/dashboard/workflows/edit/:id',
+        name: 'WorkflowEdit',
+        component: () => import('../views/WorkflowEditView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
         path: '/register',
         name: 'Register',
         component: RegisterView,
