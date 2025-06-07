@@ -20,6 +20,22 @@ Un poderoso orquestador de tareas de código abierto, auto-alojado y construido 
 
 ---
 
+## 📖 Descripción Detallada de la Aplicación
+
+El "Orquestador de Tareas" es un sistema integral diseñado para la automatización de procesos digitales. Su arquitectura de microservicios se compone de los siguientes elementos principales:
+
+*   **Frontend (Vue.js):** Es la interfaz de usuario web que permite a los usuarios registrarse, iniciar sesión y gestionar visualmente los flujos de trabajo. Desde aquí se configuran los disparadores (eventos que inician tareas, como una programación horaria) y las acciones (operaciones a ejecutar, como realizar una llamada HTTP o registrar un mensaje). Está construido con Vue 3, TypeScript y Pinia.
+
+*   **Servicio de Autenticación (Go):** Este microservicio gestiona todo lo relativo a la identidad y seguridad de los usuarios. Se encarga del registro, inicio de sesión, generación y validación de tokens JWT. Utiliza bcrypt para el hashing seguro de contraseñas y PostgreSQL para persistir los datos de los usuarios.
+
+*   **Servicio Orquestador de Tareas (Go):** Es el cerebro de la aplicación. Define, programa y ejecuta los flujos de trabajo automatizados. Incluye un motor de disparadores (actualmente con soporte para tareas programadas vía cron) y un motor de acciones extensible (actualmente con `log_message` y `http_endpoint`). También utiliza PostgreSQL para almacenar las definiciones de los workflows y el estado de las tareas.
+
+*   **Base de Datos (PostgreSQL):** Actúa como el almacén de datos centralizado y persistente para toda la información crítica, incluyendo usuarios, workflows, y logs de tareas.
+
+La comunicación entre el frontend y los servicios de backend se realiza a través de APIs REST. El `task-orchestrator-service` también se comunica con el `auth-service` para validar la autenticación de las solicitudes. Todo el sistema está diseñado para ser desplegado mediante contenedores (Podman/Docker), facilitando su instalación y gestión.
+
+---
+
 ## 🛠️ Stack Tecnológico y Arquitectura
 
 Este proyecto fue construido utilizando un stack tecnológico moderno y robusto, enfocado en el rendimiento y las buenas prácticas.
@@ -110,7 +126,12 @@ Para levantar el proyecto completo en tu máquina local, sigue estos pasos:
 Este proyecto tiene un gran potencial para seguir creciendo. Algunas ideas para el futuro incluyen:
 - [ ] **Suite de Pruebas Completa:** Añadir pruebas unitarias y de integración con Vitest y Go Test.
 - [ ] **Más Tipos de Acciones:** Implementar acciones como "Enviar Email" o "Publicar en Slack/Discord".
-- [ ] **Más Tipos de Triggers:** Añadir triggers basados en eventos (webhooks).
+- [ ] **Disparadores Basados en Eventos (Webhooks):** Permitir que los workflows se inicien mediante llamadas HTTP externas.
+- [ ] **Historial y Logs de Ejecución Detallados:** Mejorar la interfaz y el almacenamiento para un seguimiento exhaustivo de las ejecuciones de workflows.
+- [ ] **Gestión de Errores y Reintentos en Acciones:** Configurar políticas de reintento y manejo de fallos para acciones individuales.
+- [ ] **Versionado de Workflows:** Implementar un sistema para guardar y revertir a versiones anteriores de los workflows.
+- [ ] **Gestión Segura de Secretos:** Incorporar un sistema para almacenar y utilizar de forma segura credenciales o claves API en las acciones.
+- [ ] **Documentación de API para Desarrolladores:** Generar y mantener documentación Swagger/OpenAPI para los servicios de backend.
 - [ ] **CI/CD:** Configurar un pipeline con GitHub Actions para construir y testear el proyecto automáticamente.
 - [ ] **Autenticación Social (OAuth):** Permitir inicio de sesión con Google, GitHub, etc.
 
