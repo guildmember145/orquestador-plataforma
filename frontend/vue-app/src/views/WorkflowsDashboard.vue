@@ -27,16 +27,18 @@
         </thead>
         <tbody>
           <tr v-for="workflow in workflowStore.allWorkflows" :key="workflow.id">
-            <td>{{ workflow.name }}</td>
-            <td>{{ workflow.description }}</td>
-            <td>
+            <td data-label="Nombre">{{ workflow.name }}</td>
+            <td data-label="Descripción">{{ workflow.description }}</td>
+            <td data-label="Estado">
               <span :class="['status-badge', workflow.is_enabled ? 'enabled' : 'disabled']">
                 {{ workflow.is_enabled ? 'Habilitado' : 'Deshabilitado' }}
               </span>
             </td>
-            <td class="actions-cell">
-              <button @click="handleEdit(workflow.id)" class="action-btn edit">Editar</button>
-              <button @click="handleDelete(workflow.id, workflow.name)" class="action-btn delete">Eliminar</button>
+            <td data-label="Acciones">
+              <div class="actions-cell">
+                <button @click="handleEdit(workflow.id)" class="action-btn edit">Editar</button>
+                <button @click="handleDelete(workflow.id, workflow.name)" class="action-btn delete">Eliminar</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -83,8 +85,100 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
 </script>
 
 <style scoped>
-  /* Tus estilos existentes aquí... */
-  .dashboard { padding: 20px; }
+
+
+
+.dashboard {
+  padding: 20px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.loading,
+.error-message,
+.no-workflows {
+  text-align: center;
+  margin-top: 50px;
+  padding: 20px;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+}
+
+.error-message {
+  color: var(--color-error);
+}
+
+.workflows-list table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.workflows-list th,
+.workflows-list td {
+  padding: 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workflows-list th {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-size: 0.9em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.status-badge.enabled {
+  background-color: var(--color-success);
+}
+
+.status-badge.disabled {
+  background-color: #6c757d;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.action-btn.edit:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.action-btn.delete:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+
+/* --- INICIO: ESTILOS RESPONSIVOS --- */
+ .dashboard { padding: 20px; }
   .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
   .loading, .error-message, .no-workflows { text-align: center; margin-top: 50px; padding: 20px; background-color: var(--color-surface); border-radius: 8px; }
   .error-message { color: var(--color-error); }
@@ -98,4 +192,52 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
   .action-btn { padding: 6px 12px; border: 1px solid var(--color-border); background-color: var(--color-background); color: var(--color-text-primary); cursor: pointer; border-radius: 4px; transition: background-color 0.2s, border-color 0.2s; }
   .action-btn.edit:hover { border-color: var(--color-accent); color: var(--color-accent); }
   .action-btn.delete:hover { border-color: var(--color-error); color: var(--color-error); }
+
+  /* --- INICIO: ESTILOS RESPONSIVOS --- */
+  @media screen and (max-width: 768px) {
+    .workflows-list thead {
+      /* Ocultamos los encabezados de la tabla en móvil */
+      display: none;
+    }
+    .workflows-list tr {
+      /* Cada fila se convierte en una tarjeta */
+      display: block;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--color-border);
+      background-color: var(--color-surface);
+    }
+    .workflows-list td {
+      display: block;
+      text-align: right; /* Alineamos el contenido a la derecha */
+      border-bottom: 1px solid var(--color-border);
+      position: relative;
+      padding-left: 50%; /* Dejamos espacio para la etiqueta */
+    }
+    .workflows-list td:last-child {
+      border-bottom: none;
+    }
+    .workflows-list td::before {
+      /* Usamos el atributo data-label para mostrar la etiqueta */
+      content: attr(data-label);
+      position: absolute;
+      left: 15px;
+      font-weight: bold;
+      color: var(--color-text-secondary);
+      text-align: left;
+    }
+    .actions-cell {
+      justify-content: flex-end; /* Alineamos los botones a la derecha */
+    }
+  }
+
+
+
+
+
+
+
+
+
+
 </style>

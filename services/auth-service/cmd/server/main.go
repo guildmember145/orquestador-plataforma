@@ -20,15 +20,25 @@ func main() {
 	defer dbPool.Close()
 	database.RunMigrations(dbPool)
 
-	// Usamos la implementación de PostgreSQL
 	userStore := user.NewPostgresUserStore(dbPool)
 	authHandler := handlers.NewAuthHandler(userStore)
 
 	router := gin.Default()
+
+	// --- INICIO DE LA CONFIGURACIÓN DE CORS COMPLETA ---
 	corsConfig := cors.DefaultConfig()
+	// Especifica el origen de tu frontend
 	corsConfig.AllowOrigins = []string{"http://localhost:3003"}
-    // ... (resto de tu config de CORS)
+	// Permite que el navegador envíe credenciales (necesario para la autenticación)
+	corsConfig.AllowCredentials = true
+	// Permite explícitamente las cabeceras que el frontend enviará, incluyendo 'Authorization'
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "Accept"}
+    // Permite los métodos HTTP que usará la aplicación
+    corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	
 	router.Use(cors.New(corsConfig))
+	// --- FIN DE LA CONFIGURACIÓN DE CORS COMPLETA ---
+
 
 	authRoutes := router.Group("/api/baas/v1/auth")
 	{

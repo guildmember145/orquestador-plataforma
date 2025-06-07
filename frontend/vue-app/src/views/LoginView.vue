@@ -32,4 +32,18 @@ import LoginForm from '@/components/Auth/LoginForm.vue';
   margin-top: 20px;
   font-size: 0.9em;
 }
+
+@media screen and (max-width: 768px) {
+  .forms-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+
+
+
+
+
+
 </style>

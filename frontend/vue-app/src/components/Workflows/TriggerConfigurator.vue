@@ -163,4 +163,13 @@ select:focus, input:focus {
   color: var(--color-text-secondary);
   margin-top: 8px;
 }
+
+@media screen and (max-width: 768px) {
+  .form-group.half {
+    flex-basis: 100%; /* El campo ahora ocupa todo el ancho */
+  }
+}
+
+
+
 </style>
