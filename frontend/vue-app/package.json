@@ -19,9 +19,12 @@
   "devDependencies": {
     "@types/node": "^22.15.29",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
+    "jsdom": "^26.1.0",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
+    "vitest": "^3.2.2",
     "vue-tsc": "^2.2.10"
   }
 }
