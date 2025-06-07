@@ -10,21 +10,23 @@ import (
 )
 
 type Config struct {
-    Port                    string
-    JWTSecretKey            string
-    JWTExpiration           time.Duration
-    RefreshTokenExpiration  time.Duration
+    Port                   string
+    DatabaseURL            string
+    JWTSecretKey           string
+    JWTExpiration          time.Duration
+    RefreshTokenExpiration time.Duration
 }
 
 var AppConfig Config
 
 func LoadConfig() {
     if err := godotenv.Load(); err != nil {
-        log.Println("No .env file found, using environment variables")
+        log.Println("No .env file found for auth-service, using environment variables")
     }
 
     AppConfig.Port = getEnv("PORT", "5000")
-    AppConfig.JWTSecretKey = getEnv("JWT_SECRET_KEY", "default_secret_key_please_change") // Cambia el default
+    AppConfig.DatabaseURL = getEnv("DATABASE_URL", "")
+    AppConfig.JWTSecretKey = getEnv("JWT_SECRET_KEY", "default_secret")
 
     jwtExpMinutes, _ := strconv.Atoi(getEnv("JWT_EXPIRATION_MINUTES", "15"))
     AppConfig.JWTExpiration = time.Duration(jwtExpMinutes) * time.Minute
@@ -36,6 +38,9 @@ func LoadConfig() {
 func getEnv(key, fallback string) string {
     if value, exists := os.LookupEnv(key); exists {
         return value
+    }
+    if fallback == "" {
+        log.Fatalf("FATAL: Required environment variable %s is not set.", key)
     }
     return fallback
 }

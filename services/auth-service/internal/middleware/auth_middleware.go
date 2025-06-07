@@ -1,3 +1,4 @@
+// services/auth-service/internal/middleware/auth_middleware.go
 package middleware
 
 import (
@@ -5,32 +6,30 @@ import (
     "strings"
 
     "github.com/gin-gonic/gin"
-    "github.com/guildmember145/auth-service/internal/auth" // Ajusta path
+    "github.com/guildmember145/auth-service/internal/auth"
+    "github.com/guildmember145/auth-service/internal/user" // <-- AÑADIDO
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+// AuthMiddleware ahora acepta el user.Store para verificar la existencia del usuario
+func AuthMiddleware(userStore user.Store) gin.HandlerFunc {
     return func(c *gin.Context) {
+        // ... (la lógica para extraer el token es la misma) ...
         authHeader := c.GetHeader("Authorization")
-        if authHeader == "" {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-            return
-        }
+        if authHeader == "" { c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"}); return }
+        tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+        if tokenString == authHeader { c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Bearer token required"}); return }
 
-        parts := strings.Split(authHeader, " ")
-        if len(parts) != 2 || parts[0] != "Bearer" {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header format must be Bearer {token}"})
-            return
-        }
-
-        tokenString := parts[1]
         claims, err := auth.ValidateToken(tokenString)
+        if err != nil { c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: " + err.Error()}); return }
+
+        // Verificación Adicional: ¿El usuario del token todavía existe en la BD?
+        _, err = userStore.FindByID(claims.UserID)
         if err != nil {
-            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: " + err.Error()})
+            c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User from token no longer exists"})
             return
         }
 
-        // Poner información del usuario en el contexto de Gin para uso posterior
-        c.Set("userID", claims.UserID.String()) // Guardamos como string para evitar problemas de tipo
+        c.Set("userID", claims.UserID.String())
         c.Set("username", claims.Username)
         c.Next()
     }
