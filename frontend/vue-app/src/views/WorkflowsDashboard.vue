@@ -49,9 +49,11 @@
 import { onMounted } from 'vue';
 import { useWorkflowStore } from '@/stores';
 import { useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 
 const workflowStore = useWorkflowStore();
 const router = useRouter();
+const toast = useToast();
 
 onMounted(() => {
   workflowStore.fetchWorkflows();
@@ -72,9 +74,9 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
   if (confirmed) {
     try {
       await workflowStore.deleteWorkflow(workflowId);
-      alert(`Workflow "${workflowName}" eliminado.`);
+      toast.success(`Workflow "${workflowName}" eliminado.`);
     } catch (error) {
-      alert(`Error al eliminar el workflow: ${workflowStore.getWorkflowError}`);
+      toast.error(`Error al eliminar el workflow: ${workflowStore.getWorkflowError}`);
     }
   }
 };

@@ -4,11 +4,13 @@
       <h2>Detalles Básicos</h2>
       <div class="form-group">
         <label for="name">Nombre del Workflow</label>
-        <input id="name" type="text" v-model="formData.name" placeholder="Ej: Notificarme del Clima cada mañana" required />
+        <input id="name" type="text" v-model="formData.name" placeholder="Ej: Notificarme del Clima cada mañana"
+          required />
       </div>
       <div class="form-group">
         <label for="description">Descripción</label>
-        <textarea id="description" v-model="formData.description" placeholder="Describe brevemente qué hace este workflow"></textarea>
+        <textarea id="description" v-model="formData.description"
+          placeholder="Describe brevemente qué hace este workflow"></textarea>
       </div>
       <div class="form-group-inline">
         <label for="is_enabled">Habilitado:</label>
@@ -18,7 +20,7 @@
 
     <div class="form-section">
       <h2>Disparador (Trigger)</h2>
-      <TriggerConfigurator v-model="formData.trigger" />
+      <TriggerConfigurator @update:trigger="updateTriggerData" />
     </div>
 
     <div class="form-section">
@@ -27,24 +29,19 @@
         <button @click="addAction" type="button" class="add-action-btn">+ Añadir Acción</button>
       </header>
       <div class="actions-list">
-        <ActionConfigurator 
-          v-for="(action, index) in formData.actions"
-          :key="index"
-          :modelValue="action"
-          @update:modelValue="updateAction(index, $event)"
-          @delete="removeAction(index)"
-        />
+        <ActionConfigurator v-for="(action, index) in formData.actions" :key="index" :modelValue="action"
+          @update:modelValue="updateAction(index, $event)" @delete="removeAction(index)" />
         <p v-if="formData.actions.length === 0" class="placeholder">
           Añade al menos una acción para tu workflow.
         </p>
       </div>
     </div>
-    
+
     <div class="form-actions">
-  <button type="submit" class="submit-btn primary-action">
-    {{ isEditMode ? 'Actualizar Workflow' : 'Guardar Workflow' }}
-  </button>
-</div>
+      <button type="submit" class="submit-btn primary-action">
+        {{ isEditMode ? 'Actualizar Workflow' : 'Guardar Workflow' }}
+      </button>
+    </div>
   </form>
 </template>
 
@@ -54,8 +51,10 @@
 import { reactive, computed, watch } from 'vue';
 import { useWorkflowStore, type Workflow } from '@/stores';
 import { useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification'; 
 import TriggerConfigurator from './TriggerConfigurator.vue';
 import ActionConfigurator from './ActionConfigurator.vue';
+
 
 const props = defineProps({
   initialData: {
@@ -66,6 +65,7 @@ const props = defineProps({
 
 const workflowStore = useWorkflowStore();
 const router = useRouter();
+const toast = useToast();
 
 const isEditMode = computed(() => !!props.initialData);
 
@@ -76,9 +76,17 @@ const formData = reactive({
   name: '',
   description: '',
   is_enabled: true,
-  trigger: { type: 'schedule', config: { cron: '' } },
+  trigger: { // El valor inicial ahora lo genera el hijo
+    type: 'schedule',
+    config: { cron: '*/5 * * * *' },
+  },
   actions: [] as any[],
 });
+
+// Nuevo método para recibir los datos del TriggerConfigurator
+const updateTriggerData = (newTriggerData: any) => {
+  formData.trigger = newTriggerData;
+};
 
 watch(() => props.initialData, (newData) => {
   if (newData) {
@@ -106,37 +114,118 @@ const updateAction = (index: number, updatedAction: any) => {
 
 // --- INICIO DE LA MODIFICACIÓN ---
 const handleSubmit = async () => {
+  console.log('Enviando workflow para crear:', JSON.parse(JSON.stringify(formData)));
   try {
-    if (isEditMode.value) {
-      // MODO EDICIÓN: Llamamos a updateWorkflow
-      await workflowStore.updateWorkflow(props.initialData!.id, formData);
-      alert('¡Workflow actualizado exitosamente!');
-    } else {
-      // MODO CREACIÓN: Llamamos a createWorkflow
-      await workflowStore.createWorkflow(formData);
-      alert('¡Workflow creado exitosamente!');
-    }
-    // Redirigir al dashboard en caso de éxito
+    await workflowStore.createWorkflow(formData);
+
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Reemplazamos el alert() por una notificación de éxito
+    toast.success('¡Workflow creado exitosamente!');
+    // --- FIN DE LA MODIFICACIÓN ---
+
     router.push('/dashboard/workflows');
+
   } catch (error) {
-    alert('Hubo un error al guardar el workflow. Revisa la consola.');
+    // --- INICIO DE LA MODIFICACIÓN ---
+    // Reemplazamos el alert() por una notificación de error
+    toast.error('Hubo un error al crear el workflow.');
+    // --- FIN DE LA MODIFICACIÓN ---
   }
 };
 // --- FIN DE LA MODIFICACIÓN ---
 </script>
 
 <style scoped>
-.workflow-form { max-width: 800px; margin: 20px auto; padding: 30px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; }
-.form-section { margin-bottom: 30px; }
-.form-section h2 { color: var(--color-text-primary); border-bottom: 1px solid var(--color-border); padding-bottom: 10px; margin-bottom: 20px; font-size: 1.4em; }
-.form-group { margin-bottom: 20px; }
-.form-group label, .form-group-inline label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--color-text-secondary); }
-.form-group input[type="text"], .form-group textarea { width: 100%; padding: 12px; background-color: var(--color-background); border: 1px solid var(--color-border); color: var(--color-text-primary); border-radius: 5px; box-sizing: border-box; font-size: 1em; transition: border-color 0.3s; }
-.form-group-inline { display: flex; align-items: center; gap: 10px; }
-.form-group-inline input[type="checkbox"] { width: 20px; height: 20px; }
-.form-actions { text-align: right; margin-top: 40px; }
-.submit-btn { font-size: 16px; padding: 12px 24px; }
-.placeholder { color: var(--color-text-secondary); font-style: italic; padding: 20px; text-align: center; border: 1px dashed var(--color-border); border-radius: 5px; }
-.actions-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.add-action-btn { background-color: var(--color-surface); color: var(--color-accent); border: 1px solid var(--color-accent); padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.workflow-form {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 30px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.form-section {
+  margin-bottom: 30px;
+}
+
+.form-section h2 {
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  font-size: 1.4em;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label,
+.form-group-inline label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: var(--color-text-secondary);
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: 5px;
+  box-sizing: border-box;
+  font-size: 1em;
+  transition: border-color 0.3s;
+}
+
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group-inline input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+
+.form-actions {
+  text-align: right;
+  margin-top: 40px;
+}
+
+.submit-btn {
+  font-size: 16px;
+  padding: 12px 24px;
+}
+
+.placeholder {
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: 5px;
+}
+
+.actions-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.add-action-btn {
+  background-color: var(--color-surface);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
 </style>
