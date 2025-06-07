@@ -51,7 +51,7 @@
 import { reactive, computed, watch } from 'vue';
 import { useWorkflowStore, type Workflow } from '@/stores';
 import { useRouter } from 'vue-router';
-import { useToast } from 'vue-toastification'; 
+import { useToast } from 'vue-toastification';
 import TriggerConfigurator from './TriggerConfigurator.vue';
 import ActionConfigurator from './ActionConfigurator.vue';
 
@@ -59,7 +59,7 @@ import ActionConfigurator from './ActionConfigurator.vue';
 const props = defineProps({
   initialData: {
     type: Object as () => Workflow | null,
-    default: null, // Por defecto es null (modo creación)
+    default: null,
   }
 });
 
@@ -76,10 +76,7 @@ const formData = reactive({
   name: '',
   description: '',
   is_enabled: true,
-  trigger: { // El valor inicial ahora lo genera el hijo
-    type: 'schedule',
-    config: { cron: '*/5 * * * *' },
-  },
+  trigger: { type: 'schedule', config: { cron: '*/5 * * * *' } },
   actions: [] as any[],
 });
 
@@ -112,27 +109,25 @@ const updateAction = (index: number, updatedAction: any) => {
   formData.actions[index] = updatedAction;
 };
 
-// --- INICIO DE LA MODIFICACIÓN ---
+
 const handleSubmit = async () => {
-  console.log('Enviando workflow para crear:', JSON.parse(JSON.stringify(formData)));
   try {
-    await workflowStore.createWorkflow(formData);
-
-    // --- INICIO DE LA MODIFICACIÓN ---
-    // Reemplazamos el alert() por una notificación de éxito
-    toast.success('¡Workflow creado exitosamente!');
-    // --- FIN DE LA MODIFICACIÓN ---
-
+    if (isEditMode.value) {
+      // MODO EDICIÓN: Llamamos a 'updateWorkflow' con el ID y los datos del formulario.
+      await workflowStore.updateWorkflow(props.initialData!.id, formData);
+      toast.success('¡Workflow actualizado exitosamente!');
+    } else {
+      // MODO CREACIÓN: Llamamos a 'createWorkflow'.
+      await workflowStore.createWorkflow(formData);
+      toast.success('¡Workflow creado exitosamente!');
+    }
+    // Si todo va bien, redirigimos al dashboard.
     router.push('/dashboard/workflows');
-
   } catch (error) {
-    // --- INICIO DE LA MODIFICACIÓN ---
-    // Reemplazamos el alert() por una notificación de error
-    toast.error('Hubo un error al crear el workflow.');
-    // --- FIN DE LA MODIFICACIÓN ---
+    toast.error('Hubo un error al guardar el workflow.');
   }
 };
-// --- FIN DE LA MODIFICACIÓN ---
+
 </script>
 
 <style scoped>
