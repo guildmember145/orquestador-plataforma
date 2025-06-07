@@ -39,25 +39,38 @@ const handleLogout = () => {
 <style>
 /* 1. Definimos nuestra paleta de colores como variables CSS */
 :root {
-  --color-background: #1a1a1d; /* Un negro/gris muy oscuro, ligeramente cálido */
-  --color-surface: #2c2c34;  /* Una superficie un poco más clara para tarjetas y formularios */
-  --color-border: #4a4a52;   /* Un borde sutil */
-  --color-text-primary: #f2f2f2; /* Un blanco no tan puro, más suave a la vista */
-  --color-text-secondary: #a9a9b2; /* Un gris más suave para texto secundario */
-  
-  --color-accent: #fca311;       /* Un acento cálido, tipo ámbar/naranja */
-  --color-accent-hover: #e85d04;  /* Un naranja más intenso para hover */
+  --color-background: #18181b; /* Un negro más suave */
+  --color-surface: #27272a;  /* Superficie un poco más clara */
+  --color-surface-light: #3f3f46; /* Para hover y elementos secundarios */
+  --color-border: #3f3f46;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-accent: #f59e0b; /* Ámbar como acento cálido */
+  --color-accent-hover: #d97706;
+  --color-success: #10b981;
+  --color-error: #ef4444;
 
-  --color-success: #2a9d8f;      /* Un verde azulado cálido */
-  --color-error: #e76f51;        /* Un rojo/coral cálido */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Reseteo y estilos base */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 /* 2. Aplicamos estilos globales básicos */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-sans);
   background-color: var(--color-background);
   color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 #app-layout {
@@ -76,10 +89,9 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 40px;
+  padding: 1rem 2.5rem;
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  color: var(--color-text-primary);
 }
 
 .main-header .logo {
