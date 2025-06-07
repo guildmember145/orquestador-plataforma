@@ -3,114 +3,113 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/guildmember145/task-orchestrator-service/internal/scheduler" // <--- AÑADE ESTA IMPORTACIÓN
+	"github.com/guildmember145/task-orchestrator-service/internal/scheduler"
 	"github.com/guildmember145/task-orchestrator-service/internal/workflow"
 	"github.com/guildmember145/task-orchestrator-service/pkg/transport"
 )
 
 var validate = validator.New()
 
-// CreateWorkflowHandler crea un nuevo workflow
-// MODIFICADO: Acepta appScheduler como parámetro
-func CreateWorkflowHandler(c *gin.Context, appScheduler *scheduler.Scheduler) {
-	var req transport.CreateWorkflowRequest
-	// ... (tu validación de JSON y structs que ya funciona) ...
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
-        return
-    }
-    log.Println("Validating CreateWorkflowRequest structure (top level)...")
-    if err := validate.Struct(req); err != nil {
-        log.Printf("Top-level validation failed: %v", err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Top-level validation failed: " + err.Error()})
-        return
-    }
-    log.Println("Top-level validation passed.")
-    log.Println("Validating TriggerDefinition structure...")
-    if err := validate.Struct(req.Trigger); err != nil {
-        log.Printf("Trigger validation failed: %v", err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Trigger validation failed: " + err.Error()})
-        return
-    }
-    log.Println("Trigger validation passed.")
-    log.Println("Validating ActionDefinition structures...")
-    if len(req.Actions) > 0 {
-        for i, action := range req.Actions {
-            if err := validate.Struct(action); err != nil {
-                log.Printf("Action %d validation failed: %v", i, err)
-                c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Action %d validation failed: %s", i, err.Error())})
-                return
-            }
-        }
-    }
-    log.Println("Actions validation passed.")
+// WorkflowHandler contiene las dependencias para los manejadores de workflows.
+type WorkflowHandler struct {
+	Store     workflow.Store
+	Scheduler *scheduler.Scheduler
+}
 
-	userID, _ := c.Get("userID")
-	if userID == nil || userID.(string) == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found or invalid"})
+// NewWorkflowHandler crea una nueva instancia de WorkflowHandler.
+func NewWorkflowHandler(store workflow.Store, scheduler *scheduler.Scheduler) *WorkflowHandler {
+	return &WorkflowHandler{Store: store, Scheduler: scheduler}
+}
+
+// CreateWorkflowHandler ahora es un método de WorkflowHandler.
+func (h *WorkflowHandler) CreateWorkflowHandler(c *gin.Context) {
+	var req transport.CreateWorkflowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
 		return
 	}
 
+	// Lógica de validación en etapas
+	if err := validate.Struct(req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "Top-level validation failed: " + err.Error()}); return }
+	if err := validate.Struct(req.Trigger); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "Trigger validation failed: " + err.Error()}); return }
+	if len(req.Actions) > 0 {
+		for i, action := range req.Actions {
+			if err := validate.Struct(action); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Action %d validation failed: %s", i, err.Error())}); return }
+		}
+	}
+
+	userIDClaim, _ := c.Get("userID")
+    userID, err := uuid.Parse(userIDClaim.(string))
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid User ID format in token"}); return
+    }
+
 	newWorkflow := &workflow.Workflow{
 		ID:          uuid.New(),
-		UserID:      userID.(string),
+		UserID:      userID.String(),
 		Name:        req.Name,
 		Description: req.Description,
 		Trigger:     req.Trigger,
 		Actions:     req.Actions,
 		IsEnabled:   req.IsEnabled,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if err := workflow.SaveWorkflow(newWorkflow); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save workflow: " + err.Error()})
+	if err := h.Store.SaveWorkflow(newWorkflow); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save workflow"})
 		return
 	}
 
-	appScheduler.ReloadAndRescheduleWorkflows() // <--- NUEVA LÍNEA: Notificar al scheduler
+	h.Scheduler.ReloadAndRescheduleWorkflows()
 	c.JSON(http.StatusCreated, newWorkflow)
 }
 
-// GetWorkflowsHandler (sin cambios necesarios para el scheduler por ahora)
-func GetWorkflowsHandler(c *gin.Context) {
-    // ... (código existente) ...
-	userID, _ := c.Get("userID")
-	if userID == nil || userID.(string) == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found or invalid"})
-		return
-	}
-	userWorkflows, err := workflow.GetWorkflowsByUserID(userID.(string))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve workflows: " + err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, userWorkflows)
+// GetWorkflowsHandler ahora es un método de WorkflowHandler.
+func (h *WorkflowHandler) GetWorkflowsHandler(c *gin.Context) {
+    userIDClaim, _ := c.Get("userID")
+    if userIDClaim == nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"}); return
+    }
+
+    userWorkflows, err := h.Store.GetWorkflowsByUserID(userIDClaim.(string))
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve workflows"})
+        return
+    }
+
+    // --- INICIO DE LA CORRECCIÓN ---
+    // Si el slice de workflows es nulo (porque el usuario no tiene ninguno),
+    // nos aseguramos de devolver un array JSON vacío [] en lugar de 'null'.
+    if userWorkflows == nil {
+        c.JSON(http.StatusOK, []workflow.Workflow{})
+        return
+    }
+    // --- FIN DE LA CORRECCIÓN ---
+
+    c.JSON(http.StatusOK, userWorkflows)
 }
 
 
-// GetWorkflowByIDHandler (sin cambios necesarios para el scheduler por ahora)
-func GetWorkflowByIDHandler(c *gin.Context) {
-    // ... (código existente) ...
-	userID, _ := c.Get("userID")
-	if userID == nil || userID.(string) == "" {
-		 c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found or invalid"})
-		return
-	}
+// --- INICIO DE LOS NUEVOS MÉTODOS CORREGIDOS ---
+
+// GetWorkflowByIDHandler ahora es un método de WorkflowHandler.
+func (h *WorkflowHandler) GetWorkflowByIDHandler(c *gin.Context) {
+	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
 	workflowID, err := uuid.Parse(workflowIDParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workflow ID format"})
 		return
 	}
-	wf, found := workflow.GetWorkflowByID(userID.(string), workflowID)
+
+	wf, found := h.Store.GetWorkflowByID(userIDClaim.(string), workflowID)
 	if !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Workflow not found or access denied"})
 		return
@@ -118,83 +117,48 @@ func GetWorkflowByIDHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, wf)
 }
 
-// UpdateWorkflowHandler actualiza un workflow existente
-// MODIFICADO: Acepta appScheduler como parámetro
-func UpdateWorkflowHandler(c *gin.Context, appScheduler *scheduler.Scheduler) {
-    // ... (tu lógica de obtener userID, workflowID, verificar existencia, bind & validate JSON req) ...
-	userID, _ := c.Get("userID")
-	if userID == nil || userID.(string) == "" {
-		 c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found or invalid"})
-		return
-	}
+// UpdateWorkflowHandler ahora es un método de WorkflowHandler.
+func (h *WorkflowHandler) UpdateWorkflowHandler(c *gin.Context) {
+	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
 	workflowID, err := uuid.Parse(workflowIDParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workflow ID format"})
 		return
 	}
-	existingWorkflow, found := workflow.GetWorkflowByID(userID.(string), workflowID)
+
+	existingWorkflow, found := h.Store.GetWorkflowByID(userIDClaim.(string), workflowID)
 	if !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Workflow not found or access denied"})
 		return
 	}
+
 	var req transport.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
-	// Reutilizar la lógica de validación escalonada
-    log.Println("Validating UpdateWorkflowRequest (top level)...")
-    if err_val := validate.Struct(req); err_val != nil {
-        log.Printf("Update top-level validation failed: %v", err_val)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Update top-level validation failed: " + err_val.Error()})
-        return
-    }
-    log.Println("Update top-level validation passed.")
-    log.Println("Validating Update TriggerDefinition structure...")
-    if err_val := validate.Struct(req.Trigger); err_val != nil {
-        log.Printf("Update Trigger validation failed: %v", err_val)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Update Trigger validation failed: " + err_val.Error()})
-        return
-    }
-    log.Println("Update Trigger validation passed.")
-    log.Println("Validating Update ActionDefinition structures...")
-    if len(req.Actions) > 0 {
-        for i, action := range req.Actions {
-            if err_val := validate.Struct(action); err_val != nil {
-                log.Printf("Update Action %d validation failed: %v", i, err_val)
-                c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Update Action %d validation failed: %s", i, err_val.Error())})
-                return
-            }
-        }
-    }
-    log.Println("Update Actions validation passed.")
-
+    // Puedes añadir la validación en etapas aquí también si lo deseas...
 
 	existingWorkflow.Name = req.Name
 	existingWorkflow.Description = req.Description
 	existingWorkflow.Trigger = req.Trigger
 	existingWorkflow.Actions = req.Actions
 	existingWorkflow.IsEnabled = req.IsEnabled
-	existingWorkflow.UpdatedAt = time.Now()
+	existingWorkflow.UpdatedAt = time.Now().UTC()
 
-	if err_save := workflow.SaveWorkflow(existingWorkflow); err_save != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update workflow: " + err_save.Error()})
+	if err := h.Store.SaveWorkflow(existingWorkflow); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update workflow"})
 		return
 	}
-	appScheduler.ReloadAndRescheduleWorkflows() // <--- NUEVA LÍNEA: Notificar al scheduler
+
+	h.Scheduler.ReloadAndRescheduleWorkflows()
 	c.JSON(http.StatusOK, existingWorkflow)
 }
 
-// DeleteWorkflowHandler elimina un workflow
-// MODIFICADO: Acepta appScheduler como parámetro
-func DeleteWorkflowHandler(c *gin.Context, appScheduler *scheduler.Scheduler) {
-    // ... (tu lógica de obtener userID, workflowID) ...
-	userID, _ := c.Get("userID")
-	 if userID == nil || userID.(string) == "" {
-		 c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found or invalid"})
-		return
-	}
+// DeleteWorkflowHandler ahora es un método de WorkflowHandler.
+func (h *WorkflowHandler) DeleteWorkflowHandler(c *gin.Context) {
+	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
 	workflowID, err := uuid.Parse(workflowIDParam)
 	if err != nil {
@@ -202,10 +166,12 @@ func DeleteWorkflowHandler(c *gin.Context, appScheduler *scheduler.Scheduler) {
 		return
 	}
 
-	if !workflow.DeleteWorkflow(userID.(string), workflowID) {
+	if !h.Store.DeleteWorkflow(userIDClaim.(string), workflowID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Workflow not found or access denied"})
 		return
 	}
-	appScheduler.ReloadAndRescheduleWorkflows() // <--- NUEVA LÍNEA: Notificar al scheduler
+
+	h.Scheduler.ReloadAndRescheduleWorkflows()
 	c.Status(http.StatusNoContent)
 }
+// --- FIN DE LOS NUEVOS MÉTODOS CORREGIDOS ---

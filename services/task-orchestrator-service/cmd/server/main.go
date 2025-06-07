@@ -2,13 +2,14 @@
 package main
 
 import (
+	"context" // <-- Añadido para los chequeos de la base de datos
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/guildmember145/task-orchestrator-service/internal/engine"
 	"github.com/guildmember145/task-orchestrator-service/internal/handlers"
@@ -16,14 +17,38 @@ import (
 	"github.com/guildmember145/task-orchestrator-service/internal/scheduler"
 	"github.com/guildmember145/task-orchestrator-service/internal/workflow"
 	"github.com/guildmember145/task-orchestrator-service/pkg/config"
+	"github.com/guildmember145/task-orchestrator-service/pkg/database"
 )
 
 func main() {
 	config.LoadConfig()
-	router := gin.Default()
+	dbPool := database.ConnectDB()
+	defer dbPool.Close()
+	database.RunMigrations(dbPool)
 
-	workflowStoreInstance := &workflow.InMemoryWorkflowStore{}
-	appScheduler := scheduler.New(workflowStoreInstance, engine.ExecuteWorkflow)
+	// --- INICIO: PUNTO DE CHEQUEO 1 ---
+	log.Println("--- POOL CHECK 1 (después de migraciones) ---")
+	var one int
+	errCheck1 := dbPool.QueryRow(context.Background(), "SELECT 1").Scan(&one)
+	if errCheck1 != nil {
+		log.Fatalf("Pool check 1 FALLÓ: %v", errCheck1)
+	}
+	log.Println("Pool check 1 PASÓ con éxito.")
+	// --- FIN: PUNTO DE CHEQUEO 1 ---
+
+	workflowStore := workflow.NewPostgresWorkflowStore(dbPool)
+	appScheduler := scheduler.New(workflowStore, engine.ExecuteWorkflow)
+	workflowHandler := handlers.NewWorkflowHandler(workflowStore, appScheduler)
+
+	// --- INICIO: PUNTO DE CHEQUEO 2 ---
+	log.Println("--- POOL CHECK 2 (antes de iniciar scheduler) ---")
+	errCheck2 := dbPool.QueryRow(context.Background(), "SELECT 1").Scan(&one)
+	if errCheck2 != nil {
+		log.Fatalf("Pool check 2 FALLÓ: %v", errCheck2)
+	}
+	log.Println("Pool check 2 PASÓ con éxito.")
+    // --- FIN: PUNTO DE CHEQUEO 2 ---
+
 	go appScheduler.Start()
 
 	quit := make(chan os.Signal, 1)
@@ -34,33 +59,22 @@ func main() {
 		appScheduler.Stop()
 	}()
 
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-		c.Next()
-	})
+	router := gin.Default()
+	
+    corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:3003"}
+	corsConfig.AllowCredentials = true
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	router.Use(cors.New(corsConfig))
 
 	taskApiRoutes := router.Group("/api/tasks/v1")
 	taskApiRoutes.Use(middleware.AuthMiddleware())
 	{
-		// Pasar la instancia de appScheduler a los handlers que lo necesitan
-		taskApiRoutes.POST("/workflows", func(c *gin.Context) {
-			handlers.CreateWorkflowHandler(c, appScheduler)
-		})
-		taskApiRoutes.GET("/workflows", handlers.GetWorkflowsHandler) // No necesita el scheduler
-		taskApiRoutes.GET("/workflows/:workflow_id", handlers.GetWorkflowByIDHandler) // No necesita el scheduler
-		taskApiRoutes.PUT("/workflows/:workflow_id", func(c *gin.Context) {
-			handlers.UpdateWorkflowHandler(c, appScheduler)
-		})
-		taskApiRoutes.DELETE("/workflows/:workflow_id", func(c *gin.Context) {
-			handlers.DeleteWorkflowHandler(c, appScheduler)
-		})
+		taskApiRoutes.POST("/workflows", workflowHandler.CreateWorkflowHandler)
+		taskApiRoutes.GET("/workflows", workflowHandler.GetWorkflowsHandler)
+		taskApiRoutes.GET("/workflows/:workflow_id", workflowHandler.GetWorkflowByIDHandler)
+		taskApiRoutes.PUT("/workflows/:workflow_id", workflowHandler.UpdateWorkflowHandler)
+		taskApiRoutes.DELETE("/workflows/:workflow_id", workflowHandler.DeleteWorkflowHandler)
 	}
 
 	addr := fmt.Sprintf(":%s", config.AppConfig.Port)
