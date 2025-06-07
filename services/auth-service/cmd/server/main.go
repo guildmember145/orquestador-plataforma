@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"log"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/guildmember145/auth-service/internal/handlers"
@@ -19,25 +20,16 @@ func main() {
 	defer dbPool.Close()
 	database.RunMigrations(dbPool)
 
+	// Usamos la implementación de PostgreSQL
 	userStore := user.NewPostgresUserStore(dbPool)
 	authHandler := handlers.NewAuthHandler(userStore)
 
 	router := gin.Default()
-
-	// --- INICIO DE LA CORRECCIÓN DE CORS ---
-	// Reemplazamos nuestro middleware manual con uno profesional.
 	corsConfig := cors.DefaultConfig()
-	// Permitimos explícitamente el origen de nuestro frontend Vue.
 	corsConfig.AllowOrigins = []string{"http://localhost:3003"}
-	// Permitimos credenciales (importante para tokens o cookies en el futuro)
-	corsConfig.AllowCredentials = true
-	// Especificamos las cabeceras que el frontend puede enviar.
-	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
-
+    // ... (resto de tu config de CORS)
 	router.Use(cors.New(corsConfig))
-	// --- FIN DE LA CORRECCIÓN DE CORS ---
 
-	// El resto de tus rutas no cambia...
 	authRoutes := router.Group("/api/baas/v1/auth")
 	{
 		authRoutes.POST("/register", authHandler.RegisterHandler)

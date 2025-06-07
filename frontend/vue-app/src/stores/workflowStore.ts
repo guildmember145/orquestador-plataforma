@@ -47,11 +47,11 @@ export const useWorkflowStore = defineStore('workflows', {
             this.error = null;
             try {
                 const response = await orchestratorApi.get<Workflow[]>('/workflows');
-                this.workflows = response.data;
+                this.workflows = response.data || [];
                 console.log('Workflows obtenidos de la API:', this.workflows);
             } catch (err: any) {
-                this.error = err.response?.data?.error || 'No se pudieron cargar los workflows';
-                console.error(this.error);
+            this.error = err.response?.data?.error || 'No se pudieron cargar los workflows';
+            console.error(this.error);
             } finally {
                 this.isLoading = false;
             }
