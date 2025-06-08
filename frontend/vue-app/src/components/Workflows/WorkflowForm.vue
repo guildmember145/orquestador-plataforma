@@ -49,7 +49,8 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from 'vue';
-import { useWorkflowStore, type Workflow } from '@/stores';
+import { useWorkflowStore } from '@/stores';
+import type { Workflow } from '@/types'; // <-- CORRECCIÓN: Importamos desde '@types', que usa index.ts
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import TriggerConfigurator from './TriggerConfigurator.vue';
@@ -113,15 +114,15 @@ const updateAction = (index: number, updatedAction: any) => {
 const handleSubmit = async () => {
   try {
     if (isEditMode.value) {
-      // MODO EDICIÓN: Llamamos a 'updateWorkflow' con el ID y los datos del formulario.
+      
       await workflowStore.updateWorkflow(props.initialData!.id, formData);
       toast.success('¡Workflow actualizado exitosamente!');
     } else {
-      // MODO CREACIÓN: Llamamos a 'createWorkflow'.
+      
       await workflowStore.createWorkflow(formData);
       toast.success('¡Workflow creado exitosamente!');
     }
-    // Si todo va bien, redirigimos al dashboard.
+    
     router.push('/dashboard/workflows');
   } catch (error) {
     toast.error('Hubo un error al guardar el workflow.');

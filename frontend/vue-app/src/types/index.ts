@@ -18,16 +18,30 @@ export interface RegisterRequest {
 
 // Tipos de workflow
 export interface Workflow {
-  id: number
-  name: string
-  description: string
-  is_enabled: boolean
-  created_at?: string
-  updated_at?: string
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  trigger: any;
+  actions: any[];
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateWorkflowRequest {
   name: string
   description: string
   is_enabled: boolean
+}
+
+
+export interface ExecutionLog {
+  id: string;
+  workflow_id: string;
+  user_id: string;
+  status: 'running' | 'completed' | 'failed';
+  triggered_at: string;
+  completed_at?: string | null;
+  logs: any;
 }

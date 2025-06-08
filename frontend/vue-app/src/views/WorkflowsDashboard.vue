@@ -27,7 +27,11 @@
         </thead>
         <tbody>
           <tr v-for="workflow in workflowStore.allWorkflows" :key="workflow.id">
-            <td data-label="Nombre">{{ workflow.name }}</td>
+            <td data-label="Nombre">
+            <router-link :to="`/dashboard/workflows/${workflow.id}`" class="workflow-link">
+              {{ workflow.name }}
+            </router-link>
+            </td>
             <td data-label="Descripción">{{ workflow.description }}</td>
             <td data-label="Estado">
               <span :class="['status-badge', workflow.is_enabled ? 'enabled' : 'disabled']">
@@ -134,6 +138,18 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
   text-transform: uppercase;
   color: var(--color-text-secondary);
 }
+
+.workflow-link {
+    color: var(--color-text-primary);
+    text-decoration: none;
+    font-weight: bold;
+}
+.workflow-link:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+}
+
+
 
 .status-badge {
   padding: 5px 10px;

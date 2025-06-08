@@ -12,6 +12,12 @@ const routes: Array<RouteRecordRaw> = [
             return authStore.isAuthenticated ? '/dashboard/workflows' : '/login';
         },
     },
+        {
+        path: '/dashboard/workflows/:id', // <-- NUEVA RUTA CON PARÁMETRO DINÁMICO
+        name: 'WorkflowDetails',
+        component: () => import('../views/WorkflowDetailView.vue'),
+        meta: { requiresAuth: true },
+    },
     {
         path: '/login',
         name: 'Login',

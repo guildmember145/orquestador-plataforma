@@ -10,4 +10,6 @@ type Store interface {
     GetWorkflowByID(userID string, workflowID uuid.UUID) (*Workflow, bool)
     DeleteWorkflow(userID string, workflowID uuid.UUID) bool
     GetAllEnabledScheduledWorkflows() ([]*Workflow, error)
+    CreateExecution(exec *ExecutionLog) error
+    UpdateExecution(exec *ExecutionLog) error
 }

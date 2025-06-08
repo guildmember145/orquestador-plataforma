@@ -17,8 +17,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useWorkflowStore, type Workflow } from '@/stores';
-// Importamos el formulario desde nuestro nuevo barril de componentes
+import { useWorkflowStore } from '@/stores';
+import type { Workflow } from '@/types'; // Adjust the path if Workflow is defined elsewhere
 import { WorkflowForm } from '@/components/Workflows';
 
 const route = useRoute();
