@@ -49,7 +49,29 @@ export const useWorkflowStore = defineStore('workflows', {
                 this.isLoading = false;
             }
         },
-        async createWorkflow(payload: any) { /* ...código existente... */ },
+        async createWorkflow(payload: any) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                console.log("Enviando datos para crear workflow...", payload); // <-- Log de depuración
+                await orchestratorApi.post<Workflow>('/workflows', payload);
+                console.log('Workflow creado en el backend. Forzando recarga de la lista...'); // <-- Log de depuración
+
+                // --- INICIO DE LA CORRECCIÓN ---
+                // Después de crear exitosamente, en lugar de solo hacer push,
+                // llamamos a fetchWorkflows() para obtener la lista 100% actualizada
+                // desde la base de datos. Esto asegura la consistencia de los datos.
+                await this.fetchWorkflows();
+                // --- FIN DE LA CORRECCIÓN ---
+
+            } catch (err: any) {
+                this.error = err.response?.data?.error || 'No se pudo crear el workflow';
+                console.error("Error en createWorkflow:", this.error); // <-- Log de depuración
+                throw new Error(this.error);
+            } finally {
+                this.isLoading = false;
+            }
+        },
 
         async updateWorkflow(workflowId: string, payload: any) {
         this.isLoading = true;
