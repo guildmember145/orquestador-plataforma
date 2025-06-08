@@ -18,6 +18,7 @@ import (
 	"github.com/guildmember145/task-orchestrator-service/internal/workflow"
 	"github.com/guildmember145/task-orchestrator-service/pkg/config"
 	"github.com/guildmember145/task-orchestrator-service/pkg/database"
+
 )
 
 func main() {
@@ -75,6 +76,7 @@ func main() {
 		taskApiRoutes.GET("/workflows/:workflow_id", workflowHandler.GetWorkflowByIDHandler)
 		taskApiRoutes.PUT("/workflows/:workflow_id", workflowHandler.UpdateWorkflowHandler)
 		taskApiRoutes.DELETE("/workflows/:workflow_id", workflowHandler.DeleteWorkflowHandler)
+		taskApiRoutes.GET("/workflows/:workflow_id/executions", workflowHandler.GetWorkflowExecutionsHandler)
 	}
 
 	addr := fmt.Sprintf(":%s", config.AppConfig.Port)

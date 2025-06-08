@@ -12,4 +12,6 @@ type Store interface {
     GetAllEnabledScheduledWorkflows() ([]*Workflow, error)
     CreateExecution(exec *ExecutionLog) error
     UpdateExecution(exec *ExecutionLog) error
+    GetExecutionsByWorkflowID(userID string, workflowID uuid.UUID) ([]*ExecutionLog, error)
+
 }

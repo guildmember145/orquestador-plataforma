@@ -48,23 +48,48 @@ func ExecuteWorkflow(wf workflow.Workflow, store workflow.Store) {
 		TriggeredAt: time.Now().UTC(),
 		Logs:        initialLog,
 	}
-	store.CreateExecution(execution)
+	
+	// Variable para trackear si la ejecución fue creada exitosamente
+	executionCreated := false
+	
+	if err := store.CreateExecution(execution); err != nil {
+		log.Printf("ERROR: Failed to create execution record for workflow %s: %v", wf.ID, err)
+		addLog(fmt.Sprintf("Failed to create execution record: %v", err), "ERROR")
+		// Si no podemos crear el registro, aún podemos ejecutar pero no guardar el resultado
+	} else {
+		executionCreated = true
+		log.Printf("SUCCESS: Execution record created for workflow %s with ID %s", wf.ID, execution.ID)
+	}
 
-	// 2. Defer se asegura de que el estado final se guarde siempre
+	// 2. Defer se asegura de que el estado final se guarde siempre (solo si la ejecución fue creada)
 	defer func() {
+		if !executionCreated {
+			log.Printf("SKIP: Not updating execution record because it was not created successfully")
+			return
+		}
+
 		if r := recover(); r != nil {
 			addLog(fmt.Sprintf("Panic recovered during execution: %v", r), "ERROR")
 			execution.Status = "failed"
 		}
+		
 		now := time.Now().UTC()
 		execution.CompletedAt = &now
 		logsJSON, err := json.Marshal(executionLogs)
 		if err != nil {
 			log.Printf("CRITICAL: Failed to marshal execution logs for workflow %s: %v", wf.ID, err)
+			// Usar logs vacíos si falla el marshal
+			execution.Logs = json.RawMessage("[]")
 		} else {
 			execution.Logs = logsJSON
 		}
-		store.UpdateExecution(execution)
+		
+		if err := store.UpdateExecution(execution); err != nil {
+			log.Printf("ERROR: Failed to update execution record for workflow %s: %v", wf.ID, err)
+		} else {
+			log.Printf("SUCCESS: Execution record updated for workflow %s, Status: %s", wf.ID, execution.Status)
+		}
+		
 		log.Printf("ENGINE: >>> Finished execution for Workflow ID %s, Status: %s <<<", wf.ID, execution.Status)
 	}()
 
@@ -157,12 +182,16 @@ func ExecuteWorkflow(wf workflow.Workflow, store workflow.Store) {
 		if actionErr != nil {
 			addLog(fmt.Sprintf("Error processing Action '%s': %v", action.Name, actionErr), "ERROR")
 			overallSuccess = false
+		} else {
+			addLog(fmt.Sprintf("Action '%s' completed successfully", action.Name), "INFO")
 		}
 	}
 
 	if overallSuccess {
 		execution.Status = "completed"
+		addLog("Workflow execution completed successfully", "INFO")
 	} else {
 		execution.Status = "failed"
+		addLog("Workflow execution failed", "ERROR")
 	}
 }

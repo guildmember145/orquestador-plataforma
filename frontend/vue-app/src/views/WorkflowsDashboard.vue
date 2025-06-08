@@ -28,9 +28,9 @@
         <tbody>
           <tr v-for="workflow in workflowStore.allWorkflows" :key="workflow.id">
             <td data-label="Nombre">
-            <router-link :to="`/dashboard/workflows/${workflow.id}`" class="workflow-link">
-              {{ workflow.name }}
-            </router-link>
+              <router-link :to="`/dashboard/workflows/${workflow.id}`" class="workflow-link">
+                {{ workflow.name }}
+              </router-link>
             </td>
             <td data-label="Descripción">{{ workflow.description }}</td>
             <td data-label="Estado">
@@ -89,9 +89,6 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
 </script>
 
 <style scoped>
-
-
-
 .dashboard {
   padding: 20px;
 }
@@ -140,13 +137,14 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
 }
 
 .workflow-link {
-    color: var(--color-text-primary);
-    text-decoration: none;
-    font-weight: bold;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-weight: bold;
 }
+
 .workflow-link:hover {
-    color: var(--color-accent);
-    text-decoration: underline;
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 
@@ -191,9 +189,4 @@ const handleDelete = async (workflowId: string, workflowName: string) => {
   border-color: var(--color-error);
   color: var(--color-error);
 }
-
-
-
-
-
 </style>

@@ -18,7 +18,7 @@ export interface RegisterRequest {
 
 // Tipos de workflow
 export interface Workflow {
-  id: string;
+  id: string; // El UUID siempre será un string en el frontend
   user_id: string;
   name: string;
   description: string;

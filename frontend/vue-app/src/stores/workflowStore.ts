@@ -1,11 +1,11 @@
 // src/stores/workflowStore.ts
 import { defineStore } from 'pinia';
 import orchestratorApi from '@/services/orchestratorApi';
-import type { Workflow, ExecutionLog } from '@/types'; // <-- Importamos desde nuestro nuevo archivo de tipos
+import type { Workflow, ExecutionLog } from '@/types';
 
 interface WorkflowState {
     workflows: Workflow[];
-    executions: ExecutionLog[];
+    executions: ExecutionLog[]; // Para el historial del workflow seleccionado
     isLoading: boolean;
     error: string | null;
 }
@@ -36,82 +36,40 @@ export const useWorkflowStore = defineStore('workflows', {
                 this.isLoading = false;
             }
         },
+
+        // Acción para obtener el historial de un workflow específico
         async fetchExecutionsForWorkflow(workflowId: string) {
             this.isLoading = true;
             this.error = null;
-            this.executions = [];
+            this.executions = []; // Limpiamos el historial anterior antes de cargar el nuevo
             try {
                 const response = await orchestratorApi.get<ExecutionLog[]>(`/workflows/${workflowId}/executions`);
                 this.executions = response.data || [];
             } catch (err: any) {
-                this.error = err.response?.data?.error || 'No se pudo cargar el historial';
+                this.error = err.response?.data?.error || 'No se pudo cargar el historial de ejecuciones';
             } finally {
                 this.isLoading = false;
             }
         },
+
         async createWorkflow(payload: any) {
-            this.isLoading = true;
-            this.error = null;
-            try {
-                console.log("Enviando datos para crear workflow...", payload); // <-- Log de depuración
-                await orchestratorApi.post<Workflow>('/workflows', payload);
-                console.log('Workflow creado en el backend. Forzando recarga de la lista...'); // <-- Log de depuración
-
-                // --- INICIO DE LA CORRECCIÓN ---
-                // Después de crear exitosamente, en lugar de solo hacer push,
-                // llamamos a fetchWorkflows() para obtener la lista 100% actualizada
-                // desde la base de datos. Esto asegura la consistencia de los datos.
-                await this.fetchWorkflows();
-                // --- FIN DE LA CORRECCIÓN ---
-
-            } catch (err: any) {
-                this.error = err.response?.data?.error || 'No se pudo crear el workflow';
-                console.error("Error en createWorkflow:", this.error); // <-- Log de depuración
-                throw new Error(this.error);
-            } finally {
-                this.isLoading = false;
-            }
+            // ... tu código existente ...
+            await orchestratorApi.post<Workflow>('/workflows', payload);
+            await this.fetchWorkflows(); // Forzar recarga
         },
 
-        async updateWorkflow(workflowId: string, payload: any) {
-        this.isLoading = true;
-        this.error = null;
-        try {
-            // 1. Llamamos al endpoint PUT de nuestra API con los nuevos datos
-            const response = await orchestratorApi.put<Workflow>(`/workflows/${workflowId}`, payload);
+        async updateWorkflow(id: string, payload: any) {
+            // ... tu código existente ...
+            const response = await orchestratorApi.put<Workflow>(`/workflows/${id}`, payload);
+            const index = this.workflows.findIndex(wf => wf.id === id);
+            if (index !== -1) { this.workflows[index] = response.data; }
+        },
 
-            // 2. Buscamos el índice del workflow en nuestro array local
-            const index = this.workflows.findIndex(wf => wf.id === workflowId);
-            if (index !== -1) {
-                // 3. Si lo encontramos, lo reemplazamos con los datos actualizados
-                //    para que la UI se refresque instantáneamente.
-                this.workflows[index] = response.data;
-            }
-            return response.data;
-        } catch (err: any) {
-            this.error = err.response?.data?.error || `No se pudo actualizar el workflow`;
-            throw err;
-        } finally {
-            this.isLoading = false;
-        }
-    },
-    // --- FIN DE LA NUEVA LÓGICA ---
-
-    async deleteWorkflow(workflowId: string) {
-        this.isLoading = true;
-        this.error = null;
-        try {
+        async deleteWorkflow(workflowId: string) {
+            // ... tu código existente ...
             await orchestratorApi.delete(`/workflows/${workflowId}`);
             this.workflows = this.workflows.filter(wf => wf.id !== workflowId);
-        } catch (err: any) {
-            this.error = `No se pudo eliminar el workflow`;
-            throw err;
-        } finally {
-            this.isLoading = false;
-        }
-    },
-
-
+        },
 
         clearWorkflows() {
             this.workflows = [];
@@ -119,6 +77,5 @@ export const useWorkflowStore = defineStore('workflows', {
             this.isLoading = false;
             this.error = null;
         },
-        // ...resto de acciones como updateWorkflow
     },
 });

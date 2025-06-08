@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"log"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -27,7 +29,7 @@ func NewWorkflowHandler(store workflow.Store, scheduler *scheduler.Scheduler) *W
 	return &WorkflowHandler{Store: store, Scheduler: scheduler}
 }
 
-// CreateWorkflowHandler ahora es un método de WorkflowHandler.
+// CreateWorkflowHandler crea un nuevo workflow.
 func (h *WorkflowHandler) CreateWorkflowHandler(c *gin.Context) {
 	var req transport.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,7 +37,7 @@ func (h *WorkflowHandler) CreateWorkflowHandler(c *gin.Context) {
 		return
 	}
 
-	// Lógica de validación en etapas
+	// Lógica de validación en etapas (ya la tenías funcionando)
 	if err := validate.Struct(req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "Top-level validation failed: " + err.Error()}); return }
 	if err := validate.Struct(req.Trigger); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "Trigger validation failed: " + err.Error()}); return }
 	if len(req.Actions) > 0 {
@@ -52,7 +54,7 @@ func (h *WorkflowHandler) CreateWorkflowHandler(c *gin.Context) {
 
 	newWorkflow := &workflow.Workflow{
 		ID:          uuid.New(),
-		UserID:      userID.String(),
+		UserID:      userID.String(), // Convertimos UUID a string
 		Name:        req.Name,
 		Description: req.Description,
 		Trigger:     req.Trigger,
@@ -71,35 +73,22 @@ func (h *WorkflowHandler) CreateWorkflowHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, newWorkflow)
 }
 
-// GetWorkflowsHandler ahora es un método de WorkflowHandler.
+// GetWorkflowsHandler lista los workflows del usuario.
 func (h *WorkflowHandler) GetWorkflowsHandler(c *gin.Context) {
     userIDClaim, _ := c.Get("userID")
-    if userIDClaim == nil {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"}); return
-    }
-
     userWorkflows, err := h.Store.GetWorkflowsByUserID(userIDClaim.(string))
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve workflows"})
         return
     }
-
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Si el slice de workflows es nulo (porque el usuario no tiene ninguno),
-    // nos aseguramos de devolver un array JSON vacío [] en lugar de 'null'.
     if userWorkflows == nil {
         c.JSON(http.StatusOK, []workflow.Workflow{})
         return
     }
-    // --- FIN DE LA CORRECCIÓN ---
-
     c.JSON(http.StatusOK, userWorkflows)
 }
 
-
-// --- INICIO DE LOS NUEVOS MÉTODOS CORREGIDOS ---
-
-// GetWorkflowByIDHandler ahora es un método de WorkflowHandler.
+// GetWorkflowByIDHandler obtiene un workflow específico.
 func (h *WorkflowHandler) GetWorkflowByIDHandler(c *gin.Context) {
 	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
@@ -117,7 +106,7 @@ func (h *WorkflowHandler) GetWorkflowByIDHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, wf)
 }
 
-// UpdateWorkflowHandler ahora es un método de WorkflowHandler.
+// UpdateWorkflowHandler actualiza un workflow existente.
 func (h *WorkflowHandler) UpdateWorkflowHandler(c *gin.Context) {
 	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
@@ -138,7 +127,6 @@ func (h *WorkflowHandler) UpdateWorkflowHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
-    // Puedes añadir la validación en etapas aquí también si lo deseas...
 
 	existingWorkflow.Name = req.Name
 	existingWorkflow.Description = req.Description
@@ -156,7 +144,7 @@ func (h *WorkflowHandler) UpdateWorkflowHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, existingWorkflow)
 }
 
-// DeleteWorkflowHandler ahora es un método de WorkflowHandler.
+// DeleteWorkflowHandler elimina un workflow.
 func (h *WorkflowHandler) DeleteWorkflowHandler(c *gin.Context) {
 	userIDClaim, _ := c.Get("userID")
 	workflowIDParam := c.Param("workflow_id")
@@ -174,4 +162,52 @@ func (h *WorkflowHandler) DeleteWorkflowHandler(c *gin.Context) {
 	h.Scheduler.ReloadAndRescheduleWorkflows()
 	c.Status(http.StatusNoContent)
 }
-// --- FIN DE LOS NUEVOS MÉTODOS CORREGIDOS ---
+
+// GetWorkflowExecutionsHandler obtiene el historial de ejecuciones.
+func (h *WorkflowHandler) GetWorkflowExecutionsHandler(c *gin.Context) {
+    userIDClaim, exists := c.Get("userID")
+    if !exists {
+        log.Printf("ERROR: userID not found in context")
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+        return
+    }
+
+    userID := userIDClaim.(string)
+    workflowIDParam := c.Param("workflow_id")
+    
+    log.Printf("INFO: Getting executions for workflow %s, user %s", workflowIDParam, userID)
+    
+    workflowID, err := uuid.Parse(workflowIDParam)
+    if err != nil {
+        log.Printf("ERROR: Invalid workflow ID format: %s", workflowIDParam)
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workflow ID format"})
+        return
+    }
+
+    executions, err := h.Store.GetExecutionsByWorkflowID(userID, workflowID)
+    if err != nil {
+        log.Printf("ERROR: Failed to get executions for workflow %s, user %s: %v", workflowID, userID, err)
+        
+        // Si el error es por acceso denegado, devolver 403
+        if strings.Contains(err.Error(), "workflow not found or access denied") {
+            c.JSON(http.StatusForbidden, gin.H{"error": "Access to workflow denied"})
+            return
+        }
+        
+        // Para otros errores de base de datos
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Failed to retrieve executions",
+            "details": err.Error(), // Solo para debugging, remover en producción
+        })
+        return
+    }
+
+    log.Printf("SUCCESS: Retrieved %d executions for workflow %s", len(executions), workflowID)
+
+    // Si no hay ejecuciones, devolver array vacío
+    if executions == nil {
+        executions = []*workflow.ExecutionLog{}
+    }
+
+    c.JSON(http.StatusOK, executions)
+}

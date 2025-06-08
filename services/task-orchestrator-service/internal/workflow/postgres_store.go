@@ -199,3 +199,60 @@ func (s *PostgresWorkflowStore) UpdateExecution(exec *ExecutionLog) error {
 	}
 	return nil
 }
+
+
+func (s *PostgresWorkflowStore) GetExecutionsByWorkflowID(userID string, workflowID uuid.UUID) ([]*ExecutionLog, error) {
+	log.Printf("DEBUG: GetExecutionsByWorkflowID called with userID=%s, workflowID=%s", userID, workflowID)
+	
+	// Primero verificamos que el usuario tenga acceso al workflow
+	_, exists := s.GetWorkflowByID(userID, workflowID)
+	if !exists {
+		log.Printf("DEBUG: Workflow %s not found or access denied for user %s", workflowID, userID)
+		return nil, fmt.Errorf("workflow not found or access denied")
+	}
+	
+	log.Printf("DEBUG: Workflow access verified, querying executions...")
+
+	query := `
+		SELECT id, workflow_id, user_id, status, triggered_at, completed_at, logs
+		FROM workflow_executions 
+		WHERE workflow_id = $1 AND user_id = $2 
+		ORDER BY triggered_at DESC`
+
+	rows, err := s.DB.Query(context.Background(), query, workflowID, userID)
+	if err != nil {
+		log.Printf("ERROR: Database query failed for GetExecutionsByWorkflowID: %v", err)
+		return nil, fmt.Errorf("database query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var executions []*ExecutionLog
+	rowCount := 0
+	
+	for rows.Next() {
+		var exec ExecutionLog
+		err := rows.Scan(
+			&exec.ID,
+			&exec.WorkflowID,
+			&exec.UserID,
+			&exec.Status,
+			&exec.TriggeredAt,
+			&exec.CompletedAt,
+			&exec.Logs,
+		)
+		if err != nil {
+			log.Printf("ERROR: Failed to scan execution row %d: %v", rowCount, err)
+			return nil, fmt.Errorf("failed to scan execution row: %w", err)
+		}
+		executions = append(executions, &exec)
+		rowCount++
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("ERROR: Error iterating execution rows: %v", err)
+		return nil, fmt.Errorf("error iterating execution rows: %w", err)
+	}
+
+	log.Printf("SUCCESS: Retrieved %d executions for workflow %s", len(executions), workflowID)
+	return executions, nil
+}
